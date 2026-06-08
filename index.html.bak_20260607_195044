@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <meta name="description" content="EXODUS AI — منصة ذكاء سوقي متعددة الطبقات تعمل بأكثر من 20 محرك ذكاء اصطناعي متخصص. تحليل السيولة، البيئة السوقية، الترابطات، القوة النسبية والسيناريوهات الاحتمالية لأكثر من 70 أصلاً مالياً." />
+    <meta name="description" content="EXODUS AI — منصة ذكاء سوق تكيفية تعمل بـ 14 محرك ذكاء اصطناعي متخصص، مباشرة عبر تيليجرام. تحليل احترافي لأكثر من 70 أصلاً مالياً." />
     <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/jpeg" href="https://d2xsxph8kpxj0f.cloudfront.net/310519663054258797/AYmKHRunetWvU66tC4vCA6/hero-network-bUJorJuhXphJKQiJUhLVfx.webp" />
     <title>EXODUS AI — لا تخمّن السوق، افهمه</title>
@@ -124,4 +124,191 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- EXODUS Registration Popup (injected 2026-06-01) -->
+<style>
+  .exodus-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .exodus-overlay.active{display:flex}
+  .exodus-modal{background:#1a1a2e;border:1px solid #333;border-radius:16px;padding:32px 28px;max-width:420px;width:90%;color:#fff;font-family:'Tajawal',sans-serif;direction:rtl;position:relative;animation:exSlideUp .3s ease}
+  @keyframes exSlideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .exodus-modal h2{margin:0 0 8px;font-size:22px;text-align:center;color:#00E5FF}
+  .exodus-modal p{margin:0 0 20px;font-size:14px;text-align:center;color:#aaa}
+  .exodus-modal label{display:block;font-size:13px;color:#ccc;margin-bottom:4px}
+  .exodus-modal input{width:100%;padding:12px 14px;border:1px solid #444;border-radius:8px;background:#0d0d1a;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box;direction:ltr;text-align:right}
+  .exodus-modal input:focus{outline:none;border-color:#00E5FF}
+  .exodus-modal .ex-btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#00E5FF,#7C3AED);color:#fff;transition:opacity .2s}
+  .exodus-modal .ex-btn:hover{opacity:.9}
+  .exodus-modal .ex-btn:disabled{opacity:.5;cursor:not-allowed}
+  .exodus-modal .ex-close{position:absolute;top:12px;left:12px;background:none;border:none;color:#888;font-size:22px;cursor:pointer;line-height:1}
+  .exodus-modal .ex-close:hover{color:#fff}
+  .exodus-modal .ex-error{color:#ff4444;font-size:13px;text-align:center;margin-bottom:10px;min-height:18px}
+  .exodus-modal .ex-step{display:none}
+  .exodus-modal .ex-step.active{display:block}
+  .exodus-modal .ex-spinner{display:inline-block;width:18px;height:18px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:exSpin .6s linear infinite;vertical-align:middle;margin-inline-start:8px}
+  @keyframes exSpin{to{transform:rotate(360deg)}}
+</style>
+
+<div class="exodus-overlay" id="exodusOverlay">
+  <div class="exodus-modal">
+    <button class="ex-close" onclick="exodusClose()">&times;</button>
+
+    <!-- Step 1: Email + Phone -->
+    <div class="ex-step active" id="exStep1">
+      <h2>🚀 سجّل واشترك</h2>
+      <p>أدخل بياناتك لإنشاء حسابك وتفعيل الاشتراك</p>
+      <div class="ex-error" id="exErr1"></div>
+      <label>البريد الإلكتروني *</label>
+      <input type="email" id="exEmail" placeholder="you@example.com" autocomplete="email">
+      <label>رقم الهاتف (اختياري)</label>
+      <input type="tel" id="exPhone" placeholder="+966XXXXXXXXX" autocomplete="tel">
+      <button class="ex-btn" id="exBtn1" onclick="exodusSendOTP()">إرسال رمز التحقق</button>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div class="ex-step" id="exStep2">
+      <h2>🔐 رمز التحقق</h2>
+      <p>أدخل الرمز المرسل إلى بريدك الإلكتروني</p>
+      <div class="ex-error" id="exErr2"></div>
+      <label>رمز التحقق (6 أرقام)</label>
+      <input type="text" id="exOTP" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+      <button class="ex-btn" id="exBtn2" onclick="exodusVerifyOTP()">تأكيد</button>
+    </div>
+
+    <!-- Step 3: Redirecting -->
+    <div class="ex-step" id="exStep3">
+      <h2>✅ تم التحقق</h2>
+      <p>جاري تحويلك لصفحة الدفع...</p>
+      <div style="text-align:center;padding:20px"><div class="ex-spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const API_BASE = 'https://api.alsrujigroup.com';
+  let _selectedTier = 'pro';
+  let _selectedCycle = 'monthly';
+  let _exodusId = '';
+
+  // Intercept subscribe/pricing buttons
+  function hookButtons(){
+    // Look for links that go to quick-checkout or have subscribe-like text
+    document.querySelectorAll('a[href*="quick-checkout"], button, a').forEach(function(el){
+      const txt = (el.textContent||'').trim();
+      const href = (el.getAttribute('href')||'');
+      // Match Arabic subscribe buttons or quick-checkout links
+      if(txt.includes('اشترك') || txt.includes('ابدأ') || href.includes('quick-checkout')){
+        el.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          // Try to detect tier from context
+          const card = el.closest('[data-tier]') || el.closest('.pricing-card') || el.closest('[class*="card"]');
+          if(card){
+            const tierAttr = card.getAttribute('data-tier');
+            if(tierAttr) _selectedTier = tierAttr;
+          }
+          // Try from href
+          if(href.includes('tier=essential')) _selectedTier='essential';
+          else if(href.includes('tier=pro')) _selectedTier='pro';
+          else if(href.includes('tier=elite')) _selectedTier='elite';
+          if(href.includes('cycle=annual')) _selectedCycle='annual';
+          else _selectedCycle='monthly';
+          // Also try from nearby text
+          const parentText = (el.parentElement?.textContent||'').toLowerCase();
+          if(parentText.includes('essential')) _selectedTier='essential';
+          else if(parentText.includes('elite')) _selectedTier='elite';
+          else if(parentText.includes('pro')) _selectedTier='pro';
+          exodusOpen();
+        }, true);
+      }
+    });
+  }
+
+  window.exodusOpen = function(){
+    document.getElementById('exodusOverlay').classList.add('active');
+    document.getElementById('exStep1').classList.add('active');
+    document.getElementById('exStep2').classList.remove('active');
+    document.getElementById('exStep3').classList.remove('active');
+    document.getElementById('exErr1').textContent='';
+    document.getElementById('exErr2').textContent='';
+  };
+  window.exodusClose = function(){
+    document.getElementById('exodusOverlay').classList.remove('active');
+  };
+
+  window.exodusSendOTP = async function(){
+    const email = document.getElementById('exEmail').value.trim();
+    const phone = document.getElementById('exPhone').value.trim();
+    const btn = document.getElementById('exBtn1');
+    const err = document.getElementById('exErr1');
+    err.textContent='';
+    if(!email){err.textContent='البريد الإلكتروني مطلوب';return;}
+    btn.disabled=true; btn.innerHTML='جاري الإرسال...<span class="ex-spinner"></span>';
+    try{
+      const res = await fetch(API_BASE+'/api/v1/auth/verify-start',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,phone})
+      });
+      const data = await res.json();
+      if(res.ok){
+        document.getElementById('exStep1').classList.remove('active');
+        document.getElementById('exStep2').classList.add('active');
+      } else {
+        err.textContent = data.detail || 'حدث خطأ';
+      }
+    }catch(e){err.textContent='خطأ في الاتصال';}
+    btn.disabled=false; btn.textContent='إرسال رمز التحقق';
+  };
+
+  window.exodusVerifyOTP = async function(){
+    const email = document.getElementById('exEmail').value.trim();
+    const phone = document.getElementById('exPhone').value.trim();
+    const otp = document.getElementById('exOTP').value.trim();
+    const btn = document.getElementById('exBtn2');
+    const err = document.getElementById('exErr2');
+    err.textContent='';
+    if(!otp||otp.length<6){err.textContent='أدخل الرمز المكون من 6 أرقام';return;}
+    btn.disabled=true; btn.innerHTML='جاري التحقق...<span class="ex-spinner"></span>';
+    try{
+      const res = await fetch(API_BASE+'/api/v1/auth/verify-confirm',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,phone,otp})
+      });
+      const data = await res.json();
+      if(res.ok && data.exodus_id){
+        _exodusId = data.exodus_id;
+        document.getElementById('exStep2').classList.remove('active');
+        document.getElementById('exStep3').classList.add('active');
+        // Now start checkout
+        const cRes = await fetch(API_BASE+'/api/v1/checkout/start',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({exodus_id:_exodusId, tier:_selectedTier, cycle:_selectedCycle})
+        });
+        const cData = await cRes.json();
+        if(cRes.ok && cData.checkout_url){
+          window.location.href = cData.checkout_url;
+        } else {
+          err.textContent = cData.detail || 'تعذّر إنشاء جلسة الدفع';
+          document.getElementById('exStep3').classList.remove('active');
+          document.getElementById('exStep2').classList.add('active');
+        }
+      } else {
+        err.textContent = data.detail || 'الرمز غير صحيح';
+      }
+    }catch(e){err.textContent='خطأ في الاتصال';}
+    btn.disabled=false; btn.textContent='تأكيد';
+  };
+
+  // Close on overlay click
+  document.addEventListener('click',function(e){
+    if(e.target.id==='exodusOverlay') exodusClose();
+  });
+
+  // Hook buttons after DOM is ready
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){setTimeout(hookButtons,1500);});
+  } else {
+    setTimeout(hookButtons,1500);
+  }
+})();
+</script>
 </html>
